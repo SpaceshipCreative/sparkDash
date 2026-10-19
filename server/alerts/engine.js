@@ -31,6 +31,7 @@
  * are dispatched without awaiting.
  */
 import { collectConditions, effectiveRuleConfig, ruleName, severityRank } from "./conditions.js";
+import { softwareDrift } from "../../src/shared/softwareDrift.js";
 import { MAX_NAME_CHARS, capText } from "./text.js";
 
 export const HISTORY_LIMIT = 200;
@@ -165,13 +166,15 @@ export class AlertEngine {
       if (!cfgCache.has(ruleId)) cfgCache.set(ruleId, effectiveRuleConfig(ruleId, config.rules?.[ruleId]));
       return cfgCache.get(ruleId);
     };
+    // Drift compares a worker with its head, so it is worked out over the whole fleet once.
+    const drift = softwareDrift(list);
 
     for (const unit of list) {
       if (!unit?.id) continue;
       unitIds.add(unit.id);
       let result;
       try {
-        result = collectConditions(unit);
+        result = collectConditions(unit, { drift: drift.get(unit.id) });
       } catch (err) {
         this._log.error?.(`[alerts] could not read ${unit.id}: ${err?.message}`);
         continue;

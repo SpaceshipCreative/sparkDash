@@ -540,7 +540,7 @@ Opt-in (default **off**): **Settings → Alert notifications → Configure…**.
 Nothing new is detected here. The conditions are the ones sparkDash already shows, with their own thresholds:
 
 - the **Health findings** on the unit cards (`server/health/HealthEvaluator.js`: GPU temperature, unified memory, stuck low-power state, Xid / OOM, RoCE link and loss, slow link, several models loaded), and
-- the **Overview exceptions** (`src/shared/fleetExceptions.js`, the strip's own code): unit offline, thermal or hardware throttle (never the software power cap), storage at or above 90 %, LLM unavailable, tailnet unavailable.
+- the **Overview exceptions** (`src/shared/fleetExceptions.js`, the strip's own code): unit offline, thermal or hardware throttle (never the software power cap), storage at or above 90 %, LLM unavailable, tailnet unavailable, and a worker whose driver, CUDA, kernel or DGX OS version differs from its head's (`drift`, 30 min wait by default so a rolling upgrade stays quiet).
 
 Each can be switched off, and given its own wait. Timing works like Prometheus: a condition has to hold for its wait before it fires (until then it is *pending*), and a firing alert clears only after the condition has stayed clear for the same wait (at least 30 s), so a reading hovering on a threshold does not notify on every crossing. An offline unit keeps its other alerts as they are instead of clearing them. The firing set is saved, so a restart neither repeats a notification nor resets a duration.
 

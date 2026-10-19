@@ -224,3 +224,37 @@ test("unit names and summaries in alerts are capped", () => {
   assert.ok([...a.unitName].length <= 60);
   assert.ok([...a.summary].length <= 120);
 });
+
+const sw = (driver) => ({ driver, cuda: "13.0.1", kernel: "6.11.0-1016-nvidia", os: "Ubuntu 24.04.3 LTS", dgxOs: "7.2.3", collectedAt: 1 });
+const driftHeadUnit = (over = {}) => unit({ id: "spark-1", name: "spark-1", role: "head", software: sw("580.82.07"), ...over });
+const driftWorker = (driver, over = {}) => unit({ id: "spark-2", name: "spark-2", role: "worker", workerHeadId: "spark-1", software: sw(driver), ...over });
+
+test("a worker's driver drift fires on the worker after its wait, and resolves after the fix holds", () => {
+  const { now, engine } = setup({ drift: { forSec: 1800 } });
+  engine.evaluate([driftHeadUnit(), driftWorker("580.95.05")]);
+  assert.equal(engine.pending().length, 1);
+  now.advance(1_800_000);
+  engine.evaluate([driftHeadUnit(), driftWorker("580.95.05")]);
+  const [a] = engine.active();
+  assert.equal(a.key, "spark-2:drift");
+
+  engine.evaluate([driftHeadUnit(), driftWorker("580.82.07")]);
+  assert.equal(engine.active().length, 1, "clears only after staying clear for the wait");
+  now.advance(1_800_000);
+  engine.evaluate([driftHeadUnit(), driftWorker("580.82.07")]);
+  assert.equal(engine.active().length, 0);
+});
+
+test("a rebooting head does not resolve the worker's drift alert", () => {
+  const { now, engine } = setup({ drift: { forSec: 1800 } });
+  const fleet = (headOver) => [driftHeadUnit(headOver), driftWorker("580.95.05")];
+  engine.evaluate(fleet());
+  now.advance(1_800_000);
+  engine.evaluate(fleet());
+  assert.equal(engine.active().length, 1);
+  for (let i = 0; i < 3; i++) {
+    now.advance(1_800_000);
+    engine.evaluate(fleet({ online: false, offlineReason: "timed out" }));
+  }
+  assert.deepEqual(engine.active().map((x) => x.key), ["spark-2:drift"]);
+});

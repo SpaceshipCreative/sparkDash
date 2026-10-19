@@ -111,3 +111,28 @@ test("capText flattens control characters and keeps short text as is", () => {
   assert.equal(capText(null), "");
   assert.equal(capText("abcdef", 4), "abc…");
 });
+
+const DRIFT = { headId: "spark-1", headName: "spark-1", diffs: [{ field: "driver", label: "driver", value: "580.95.05", headValue: "580.82.07" }] };
+
+test("software drift is one warning condition with the shared wording", () => {
+  const r = collectConditions(unit({ id: "spark-2", role: "worker" }), { drift: DRIFT });
+  assert.deepEqual(r.conditions, [{
+    ruleId: "drift",
+    ruleName: "Software differs from head",
+    severity: "warning",
+    label: "Software differs from head",
+    summary: "driver 580.95.05 vs 580.82.07 on spark-1",
+  }]);
+  assert.equal(r.judged("drift"), true);
+});
+
+test("an offline worker raises no drift condition and the rule is not judged (its alert holds)", () => {
+  const r = collectConditions(unit({ online: false, offlineReason: "timed out" }), { drift: DRIFT });
+  assert.deepEqual(r.conditions.map((c) => c.ruleId), ["offline"]);
+  assert.equal(r.judged("drift"), false);
+});
+
+test("the drift rule waits 30 minutes by default and is on", () => {
+  assert.deepEqual(effectiveRuleConfig("drift"), { enabled: true, forSec: 1800 });
+  assert.equal(RULES.find((r) => r.id === "drift").source, "strip");
+});

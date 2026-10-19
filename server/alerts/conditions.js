@@ -16,6 +16,7 @@
  * belong to the sources.
  */
 import { fleetExceptions } from "../../src/shared/fleetExceptions.js";
+import { DRIFT_LABEL, driftSummary } from "../../src/shared/softwareDrift.js";
 import { MAX_NAME_CHARS, capText } from "./text.js";
 
 export const SEVERITIES = Object.freeze(["warning", "critical"]);
@@ -38,6 +39,7 @@ export const RULES = Object.freeze([
   { id: "disk", source: "strip", name: "Storage", description: "A monitored filesystem at or above 90 % (Overview strip).", defaults: { enabled: true, forSec: 300 } },
   { id: "llm", source: "strip", name: "LLM unavailable", description: "Every monitored LLM port on the unit stopped answering (Overview strip).", defaults: { enabled: true, forSec: 120 } },
   { id: "tailnet", source: "strip", name: "Tailnet unavailable", description: "Tailnet monitoring is on and the node is not connected (Overview strip).", defaults: { enabled: true, forSec: 120 } },
+  { id: "drift", source: "strip", name: "Software differs from head", description: "A worker's driver, CUDA, kernel or DGX OS version differs from its head's (Overview strip). The 30-minute wait covers a rolling upgrade.", defaults: { enabled: true, forSec: 1800 } },
   { id: "thermal", source: "health", name: "GPU temperature", description: "Health finding: the GPU is running hot, or close to its shutdown temperature.", defaults: { enabled: true, forSec: 60 } },
   { id: "memory", source: "health", name: "Unified memory low", description: "Health finding: little unified memory left before the kernel starts killing processes.", defaults: { enabled: true, forSec: 60 } },
   { id: "low-power", source: "health", name: "GPU stuck in low power", description: "Health finding: high utilisation at a few watts for several samples in a row.", defaults: { enabled: true, forSec: 0 } },
@@ -84,9 +86,10 @@ export function ruleName(ruleId, fallbackTitle) {
  * unit dropping off the network must not "resolve" its temperature alert.
  *
  * @param {any} unit SparkMonitor snapshot
+ * @param {{ drift?: { headId: string, headName: string, diffs: any[] } }} [fleet] this unit's entry from softwareDrift(units), when it has one
  * @returns {{ judged: (ruleId: string) => boolean, conditions: Array<{ ruleId: string, ruleName: string, severity: "warning"|"critical", label: string, summary: string }> }}
  */
-export function collectConditions(unit) {
+export function collectConditions(unit, { drift } = {}) {
   const conditions = [];
   if (!unit || typeof unit !== "object") return { judged: () => false, conditions };
   const checked = unit.online || unit.offlineReason != null;
@@ -104,6 +107,15 @@ export function collectConditions(unit) {
     });
   }
   if (unit.online) {
+    if (drift) {
+      conditions.push({
+        ruleId: "drift",
+        ruleName: ruleName("drift"),
+        severity: "warning",
+        label: DRIFT_LABEL,
+        summary: capText(driftSummary(drift)),
+      });
+    }
     const findings = Array.isArray(unit.health) ? unit.health : [];
     const seen = new Set();
     for (const f of findings) {

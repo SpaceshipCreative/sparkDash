@@ -39,7 +39,7 @@ function spark(overrides = {}) {
 function countingMonitor(overrides) {
   const monitor = new SparkMonitor(spark(overrides));
   monitor._running = true;
-  const calls = { gpu: 0, cpu: 0, uptime: 0 };
+  const calls = { gpu: 0, cpu: 0, uptime: 0, software: 0 };
   monitor.collector.collectGpu = async () => {
     calls.gpu += 1;
     return monitor.collector._defaultGpu();
@@ -47,6 +47,10 @@ function countingMonitor(overrides) {
   monitor.collector.collectCpu = async () => {
     calls.cpu += 1;
     return monitor.collector._defaultCpu();
+  };
+  monitor.collector.collectSoftware = async () => {
+    calls.software += 1;
+    return null;
   };
   monitor._readUptime = async () => {
     calls.uptime += 1;

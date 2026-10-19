@@ -192,17 +192,17 @@ const REMOTE_GPU_SECTIONS = new Set(["NVIDIA", "NVIDIA_VRAM", "NVIDIA_APPS", "AM
 
 /**
  * Split the remote GPU probe output into named sections. A section starts at a
- * line that is exactly one of the known `__NAME__` markers; anything else (JSON,
- * GPU names, even ones containing "__") is section content.
+ * line that is exactly one of the `allowed` `__NAME__` markers (the GPU probe's by
+ * default); anything else (JSON, GPU names, even ones containing "__") is section content.
  */
-export function splitRemoteGpuSections(output) {
+export function splitRemoteGpuSections(output, allowed = REMOTE_GPU_SECTIONS) {
   const sections = {};
   let current = null;
   const lines = [];
   const flush = () => { if (current) sections[current] = lines.join("\n").trim(); lines.length = 0; };
   for (const line of String(output ?? "").split(/\r?\n/)) {
     const m = /^__([A-Z_]+)__$/.exec(line.trim());
-    if (m && REMOTE_GPU_SECTIONS.has(m[1])) { flush(); current = m[1]; continue; }
+    if (m && allowed.has(m[1])) { flush(); current = m[1]; continue; }
     if (current) lines.push(line);
   }
   flush();

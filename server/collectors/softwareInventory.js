@@ -23,7 +23,7 @@ export function buildSoftwareScript() {
 }
 
 function cap(value) {
-  const s = typeof value === "string" ? value.trim() : "";
+  const s = typeof value === "string" ? value.replace(/[\x00-\x1f\x7f]/g, "").trim() : "";
   return s ? s.slice(0, MAX_CHARS) : null;
 }
 
@@ -40,7 +40,7 @@ function keyValues(text) {
 function parseDriver(text) {
   // Open: "... Open Kernel Module for aarch64  580.95.05  ..."; proprietary: "... x86_64 Kernel Module  550.54.14  ..."
   const m = /Kernel Module(?:\s+for\s+\S+)?\s+(\d+\.\d+(?:\.\d+)?)\b/.exec(String(text ?? ""));
-  return m ? m[1] : null;
+  return m ? cap(m[1]) : null;
 }
 
 function parseCuda(text) {
@@ -72,7 +72,7 @@ export function parseSoftware(sections, now) {
     kernel: parseKernel(s.KERNEL),
     os: cap(keyValues(s.OSREL).PRETTY_NAME),
     // OTA updates append DGX_OTA_VERSION lines; the install image is DGX_SWBUILD_VERSION.
-    dgxOs: cap(dgx.DGX_OTA_VERSION ?? dgx.DGX_SWBUILD_VERSION),
+    dgxOs: cap(dgx.DGX_OTA_VERSION || dgx.DGX_SWBUILD_VERSION),
   };
   if (Object.values(result).every((v) => v == null)) return null;
   return { ...result, collectedAt: now };

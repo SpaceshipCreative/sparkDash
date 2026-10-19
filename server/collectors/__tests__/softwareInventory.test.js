@@ -66,6 +66,16 @@ test("values are unquoted and capped at 100 characters", () => {
   assert.equal(r.kernel, null, "a kernel release is one token; 5000 chars of junk is not one");
   assert.equal(r.os.length, 100);
   assert.equal(parseSoftware({ OSREL: 'PRETTY_NAME="DGX OS 7 (Ubuntu 24.04)"' }, 1).os, "DGX OS 7 (Ubuntu 24.04)");
+  const driver = parseSoftware({ DRIVER: `NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  ${"5".repeat(150)}.1  Release Build` }, 1)?.driver;
+  assert.equal(driver.length, 100);
+});
+
+test("an empty DGX_OTA_VERSION falls back to the install image version", () => {
+  assert.equal(parseSoftware({ DGXREL: 'DGX_SWBUILD_VERSION="7.2.0"\nDGX_OTA_VERSION=""' }, 1).dgxOs, "7.2.0");
+});
+
+test("control characters are stripped from version strings", () => {
+  assert.equal(parseSoftware({ CUDA: '{"cuda":{"version":"13.0\\u001b[31m\\n"}}' }, 1).cuda, "13.0[31m");
 });
 
 test("splitRemoteGpuSections with an allowed set ignores the GPU markers, and the default is unchanged", () => {

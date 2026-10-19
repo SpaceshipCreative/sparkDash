@@ -31,6 +31,7 @@ describe("SparkHeader software line", () => {
     const text = container.querySelector(".sp-header__software")?.textContent ?? "";
     expect(text).toContain("Driver 580.95.05");
     expect(text).toContain("Kernel 6.11.0-1016-nvidia");
+    expect(text).toContain("OS Ubuntu 24.04.3 LTS");
     expect(text).toContain("DGX OS 7.2.3");
     expect(text).not.toContain("CUDA");
     expect(container.querySelector(".sp-header__software .text-warning")).toBeNull();

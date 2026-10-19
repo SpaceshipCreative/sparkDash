@@ -245,6 +245,18 @@ test("a worker's driver drift fires on the worker after its wait, and resolves a
   assert.equal(engine.active().length, 0);
 });
 
+test("turning the drift rule off ends a firing drift alert", () => {
+  const { now, engine, config } = setup({ drift: { forSec: 1800 } });
+  engine.evaluate([driftHeadUnit(), driftWorker("580.95.05")]);
+  now.advance(1_800_000);
+  engine.evaluate([driftHeadUnit(), driftWorker("580.95.05")]);
+  assert.equal(engine.active().length, 1);
+  config.rules.drift = { enabled: false };
+  now.advance(1_000);
+  engine.evaluate([driftHeadUnit(), driftWorker("580.95.05")]);
+  assert.equal(engine.active().length, 0);
+});
+
 test("a rebooting head does not resolve the worker's drift alert", () => {
   const { now, engine } = setup({ drift: { forSec: 1800 } });
   const fleet = (headOver) => [driftHeadUnit(headOver), driftWorker("580.95.05")];

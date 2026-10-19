@@ -73,6 +73,9 @@
   font-size: 13px;
   color: var(--color-muted);
 }
+.sp-header__software .mono {
+  overflow-wrap: anywhere;
+}
 .sp-sep {
   margin-inline: 0.45em;
   color: var(--color-muted);

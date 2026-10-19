@@ -131,6 +131,15 @@ describe("deriveAlerts: software drift", () => {
     ]);
   });
 
+  it("a server drift alert takes its text from the live snapshots, not the server's summary", () => {
+    const [row] = stripAlerts({
+      sparks: [withSoftware("spark-1", "580.82.07", "head"), withSoftware("spark-2", "580.95.05", "worker")],
+      alertsEnabled: true,
+      serverAlerts: [serverAlert({ key: "spark-2:drift", ruleId: "drift", unitId: "spark-2", unitName: "Spark spark-2", label: "Software differs from head", summary: "stale server text" })],
+    });
+    expect(row.detail).toBe("driver 580.95.05 vs 580.82.07 on Spark spark-1");
+  });
+
   it("matching versions raise nothing", () => {
     expect(deriveAlerts([withSoftware("spark-1", "580.82.07", "head"), withSoftware("spark-2", "580.82.07", "worker")])).toEqual([]);
   });

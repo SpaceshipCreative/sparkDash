@@ -4,7 +4,7 @@ import { backendLabel } from "../../shared/llmBackends.js";
 import { Tag } from "../ui/Tag";
 import { OVERVIEW_ID } from "../../constants";
 import { SparkActions } from "./SparkActions";
-import type { DriftEntry } from "../../shared/softwareDrift";
+import type { DriftDiff, DriftEntry } from "../../shared/softwareDrift";
 
 interface SparkHeaderProps {
   spark: SparkSnapshot;
@@ -51,13 +51,14 @@ export function SparkHeader({ spark, drift, onEdit, onNavigate }: SparkHeaderPro
     hardware.totalMemoryGB != null ? `${Math.round(hardware.totalMemoryGB)} GB` : null,
   ].filter(Boolean);
   const sw = spark.software;
-  const driftBy = new Map((drift?.diffs ?? []).map((d) => [d.field, d] as const));
+  const driftBy = new Map<string, DriftDiff>((drift?.diffs ?? []).map((d) => [d.field, d]));
   const versions = sw
     ? (
         [
           ["driver", "Driver"],
           ["cuda", "CUDA"],
           ["kernel", "Kernel"],
+          ["os", "OS"],
           ["dgxOs", "DGX OS"],
         ] as const
       ).flatMap(([field, label]) => (sw[field] ? [{ field, label, value: sw[field] as string, diff: driftBy.get(field) }] : []))

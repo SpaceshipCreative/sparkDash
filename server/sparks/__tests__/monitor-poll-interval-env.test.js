@@ -44,6 +44,7 @@ test("POLL_INTERVAL_GPU wins over the setting for GPU only", async (t) => {
     monitor.collector[method] = async () => ({});
   }
   monitor.collector.collectStorage = async () => [];
+  monitor.collector.collectSoftware = async () => null;
   monitor._readUptime = async () => 1;
   monitor.online = true;
   const counts = { gpu: 0, cpu: 0 };

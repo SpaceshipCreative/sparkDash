@@ -64,6 +64,7 @@ function countingMonitor(t, { sparkOverrides, pollIntervalMs } = {}) {
   collector.collectNetwork = async () => collector._defaultNetwork();
   collector.collectStorage = async () => [];
   collector.collectUnifiedMemory = async () => collector._defaultUnifiedMemory();
+  collector.collectSoftware = async () => null;
   monitor.llmProbes = new Map();
   monitor._readUptime = async () => 1234;
   monitor.online = true;

@@ -106,3 +106,32 @@ describe("FleetAlertStrip", () => {
     expect(rows()).toEqual([]);
   });
 });
+
+function withSoftware(id: string, driver: string, role: "head" | "worker"): SparkSnapshot {
+  const s = makeSpark(id);
+  s.role = role;
+  s.workerHeadId = role === "worker" ? "spark-1" : null;
+  s.software = { driver, cuda: "13.0.1", kernel: "6.11.0-1016-nvidia", os: "Ubuntu 24.04.3 LTS", dgxOs: "7.2.3", collectedAt: 1 };
+  return s;
+}
+
+describe("deriveAlerts: software drift", () => {
+  it("lists a worker whose driver differs from its head, with the server's key and wording", () => {
+    const alerts = deriveAlerts([withSoftware("spark-1", "580.82.07", "head"), withSoftware("spark-2", "580.95.05", "worker")]);
+    expect(alerts).toEqual([
+      {
+        key: "spark-2:drift",
+        unitId: "spark-2",
+        unitName: "Spark spark-2",
+        label: "Software differs from head",
+        detail: "driver 580.95.05 vs 580.82.07 on Spark spark-1",
+        severity: "warning",
+        startsAt: null,
+      },
+    ]);
+  });
+
+  it("matching versions raise nothing", () => {
+    expect(deriveAlerts([withSoftware("spark-1", "580.82.07", "head"), withSoftware("spark-2", "580.82.07", "worker")])).toEqual([]);
+  });
+});

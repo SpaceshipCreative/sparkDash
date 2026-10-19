@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AlertInstance, SparkSnapshot } from "../../api/types";
 import { fleetExceptions } from "../../shared/fleetExceptions";
+import { DRIFT_LABEL, driftSummary, softwareDrift } from "../../shared/softwareDrift";
 import { AlertTriangleIcon, ChevronRightIcon } from "../ui/icons";
 
 export type FleetAlert = {
@@ -33,6 +34,20 @@ export function deriveAlerts(sparks: SparkSnapshot[], unit: "celsius" | "fahrenh
         startsAt: null,
       });
     }
+  }
+  // Drift compares a worker with its head, so it comes from the whole fleet, not one unit.
+  for (const [unitId, entry] of softwareDrift(sparks)) {
+    const spark = sparks.find((s) => s.id === unitId);
+    if (!spark) continue;
+    alerts.push({
+      key: `${unitId}:drift`,
+      unitId,
+      unitName: spark.name,
+      label: DRIFT_LABEL,
+      detail: driftSummary(entry),
+      severity: "warning",
+      startsAt: null,
+    });
   }
   return alerts;
 }

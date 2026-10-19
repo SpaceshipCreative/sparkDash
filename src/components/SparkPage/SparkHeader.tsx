@@ -4,9 +4,12 @@ import { backendLabel } from "../../shared/llmBackends.js";
 import { Tag } from "../ui/Tag";
 import { OVERVIEW_ID } from "../../constants";
 import { SparkActions } from "./SparkActions";
+import type { DriftEntry } from "../../shared/softwareDrift";
 
 interface SparkHeaderProps {
   spark: SparkSnapshot;
+  /** This unit's software drift from its head (softwareDrift over the fleet), if any. */
+  drift?: DriftEntry | null;
   onEdit?: () => void;
   /** Navigate to a spark id — wired to the back-to-overview link. */
   onNavigate?: (sparkId: string) => void;
@@ -24,7 +27,7 @@ function formatUptime(seconds: number): string {
   return `${days}d ${remainHours}h`;
 }
 
-export function SparkHeader({ spark, onEdit, onNavigate }: SparkHeaderProps) {
+export function SparkHeader({ spark, drift, onEdit, onNavigate }: SparkHeaderProps) {
   const { hardware } = spark;
   const online = spark.online;
   const hermes = spark.hermes;
@@ -47,6 +50,18 @@ export function SparkHeader({ spark, onEdit, onNavigate }: SparkHeaderProps) {
     hardware.gpuChip ? `${hardware.device} · ${hardware.gpuChip}` : hardware.device,
     hardware.totalMemoryGB != null ? `${Math.round(hardware.totalMemoryGB)} GB` : null,
   ].filter(Boolean);
+  const sw = spark.software;
+  const driftBy = new Map((drift?.diffs ?? []).map((d) => [d.field, d] as const));
+  const versions = sw
+    ? (
+        [
+          ["driver", "Driver"],
+          ["cuda", "CUDA"],
+          ["kernel", "Kernel"],
+          ["dgxOs", "DGX OS"],
+        ] as const
+      ).flatMap(([field, label]) => (sw[field] ? [{ field, label, value: sw[field] as string, diff: driftBy.get(field) }] : []))
+    : [];
 
   return (
     <header className={`sp-header ${online ? "" : "is-offline"}`}>
@@ -120,6 +135,21 @@ export function SparkHeader({ spark, onEdit, onNavigate }: SparkHeaderProps) {
           {(spark.lanIp || tailscaleIp) && hw.length > 0 && <span className="sp-sep">·</span>}
           <span>{hw.join(", ")}</span>
         </p>
+        {versions.length > 0 && (
+          <p className="sp-header__meta sp-header__software">
+            {versions.map((v, i) => (
+              <span key={v.field}>
+                {i > 0 && <span className="sp-sep">·</span>}
+                <span
+                  className={v.diff ? "text-warning" : undefined}
+                  title={v.diff && drift ? `${drift.headName} has ${v.diff.headValue}` : undefined}
+                >
+                  {v.label} <span className="mono">{v.value}</span>
+                </span>
+              </span>
+            ))}
+          </p>
+        )}
       </div>
 
       {/* Desktop action cluster (hidden on mobile; mobile renders its own row below the header) */}

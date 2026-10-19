@@ -56,6 +56,7 @@ export function isFilterActive(f: ActivityFilter): boolean {
 export function categorize(type: string): CategoryId {
   if (type === "spark.online" || type === "spark.offline") return "status";
   if (type === "spark.added" || type === "spark.removed") return "fleet";
+  if (type.startsWith("software.")) return "fleet";
   if (type.startsWith("gpu.throttle")) return "thermal";
   if (type.startsWith("health.")) return "health";
   if (type.startsWith("alert.")) return "alerts";

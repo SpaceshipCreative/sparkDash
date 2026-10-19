@@ -31,6 +31,8 @@ describe("categorize / typeLabel", () => {
     expect(categorize("llm.start.requested")).toBe("llm");
     expect(categorize("spark.added")).toBe("fleet");
     expect(categorize("spark.removed")).toBe("fleet");
+    expect(categorize("software.changed")).toBe("fleet");
+    expect(typeLabel("software.changed")).toBe("Software changed");
     expect(categorize("alert.notify.sent")).toBe("alerts");
     expect(categorize("alert.notify.failed")).toBe("alerts");
     expect(typeLabel("alert.notify.failed")).toBe("Notification failed");

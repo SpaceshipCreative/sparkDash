@@ -6,6 +6,7 @@ import { normalizeMac, WOL_INTERFACE } from "../wol.js";
 import { sshExec } from "./ssh.js";
 import { getSettings } from "../settings.js";
 import { RoceSampler } from "./roce.js";
+import { SOFTWARE_SECTIONS, buildSoftwareScript, parseSoftware } from "./softwareInventory.js";
 import { IntelSudoGate, IntelVramCache, buildIntelProbeScript, parseIntelProbe, sampleIntelCards } from "./intelGpu.js";
 import {
   WINDOWS_GPU_SCRIPT,
@@ -572,6 +573,24 @@ export class SystemCollector {
     } catch (err) {
       console.error(`[SystemCollector] RoCE error for ${this.spark.id}:`, err.message);
       return undefined; // could not read: the caller keeps its previous value
+    }
+  }
+
+  /** Driver, CUDA, kernel, OS and DGX OS versions; null on Windows / macOS or when nothing could be read. */
+  async collectSoftware() {
+    if (this.isWindows || this.isMac) return null;
+    const script = buildSoftwareScript();
+    try {
+      const out = this.spark.isLocal
+        ? this._hasHostProc()
+          ? // The container's /etc describes the image, not the host.
+            await this._execOnHost(script, { allowContainerFallback: false })
+          : await this._exec(script)
+        : await sshExec(this.spark, script, { timeoutMs: 8000 });
+      return parseSoftware(splitRemoteGpuSections(out, SOFTWARE_SECTIONS), Date.now());
+    } catch (err) {
+      console.error(`[SystemCollector] software error for ${this.spark.id}:`, err.message);
+      return null;
     }
   }
 

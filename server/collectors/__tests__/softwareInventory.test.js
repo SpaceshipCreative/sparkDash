@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SOFTWARE_FILES, SOFTWARE_SECTIONS, buildSoftwareScript, parseSoftware } from "../softwareInventory.js";
-import { splitRemoteGpuSections } from "../SystemCollector.js";
+import { SystemCollector, splitRemoteGpuSections } from "../SystemCollector.js";
 
 const OPEN_MODULE = "NVRM version: NVIDIA UNIX Open Kernel Module for aarch64  580.95.05  Release Build  (dvs-builder@U22-I3-AF03-09-1)  Tue Sep 23 22:11:58 UTC 2025\nGCC version:  gcc version 13.3.0 (Ubuntu 13.3.0-6ubuntu2~24.04)";
 const PROPRIETARY_MODULE = "NVRM version: NVIDIA UNIX x86_64 Kernel Module  550.54.14  Thu Feb 22 01:44:30 UTC 2024\nGCC version:  gcc version 12.3.0";
@@ -72,4 +72,39 @@ test("splitRemoteGpuSections with an allowed set ignores the GPU markers, and th
   const mixed = "\n__NVIDIA__\ngpu line\n__KERNEL__\n6.8.0\n";
   assert.deepEqual(splitRemoteGpuSections(mixed, SOFTWARE_SECTIONS), { KERNEL: "6.8.0" });
   assert.equal(splitRemoteGpuSections(mixed).NVIDIA, "gpu line\n__KERNEL__\n6.8.0");
+});
+
+test("collectSoftware runs the script on the host (not in the container) for a local Docker unit", async () => {
+  const c = new SystemCollector({ id: "local", isLocal: true });
+  c._hasHostProc = () => true;
+  const calls = [];
+  c._execOnHost = async (cmd, opts) => (calls.push({ cmd, opts }), "\n__KERNEL__\n6.11.0-1016-nvidia\n");
+  c._exec = async () => assert.fail("the container's /etc must never answer for the host");
+  const r = await c.collectSoftware();
+  assert.equal(r.kernel, "6.11.0-1016-nvidia");
+  assert.deepEqual(calls, [{ cmd: buildSoftwareScript(), opts: { allowContainerFallback: false } }]);
+});
+
+test("collectSoftware reads directly when sparkDash runs on the host without Docker", async () => {
+  const c = new SystemCollector({ id: "local", isLocal: true });
+  c._hasHostProc = () => false;
+  c._exec = async () => "\n__OSREL__\nPRETTY_NAME=\"Ubuntu 24.04.3 LTS\"\n";
+  assert.equal((await c.collectSoftware()).os, "Ubuntu 24.04.3 LTS");
+});
+
+test("collectSoftware is null on Windows and macOS units and runs nothing", async () => {
+  for (const platform of ["windows", "darwin"]) {
+    const c = new SystemCollector({ id: "x", isLocal: true, platform });
+    c._exec = async () => assert.fail("must not run");
+    c._execOnHost = async () => assert.fail("must not run");
+    assert.equal(await c.collectSoftware(), null);
+  }
+});
+
+test("collectSoftware turns a failing command into null instead of throwing", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const c = new SystemCollector({ id: "local", isLocal: true });
+  c._hasHostProc = () => false;
+  c._exec = async () => { throw new Error("boom"); };
+  assert.equal(await c.collectSoftware(), null);
 });

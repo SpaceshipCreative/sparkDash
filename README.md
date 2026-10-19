@@ -979,6 +979,7 @@ Copy `.env.example` to `.env` if needed:
 | `POLL_INTERVAL_LLM` | _(setting)_ | LLM probe poll (ms); same rule |
 | `POLL_INTERVAL_BANDWIDTH` | _(setting, ≥ 2000)_ | Memory bandwidth / dmon poll (ms); same rule, and when it follows the setting it never drops below 2000 |
 | `POLL_INTERVAL_HERMES` | `600000` | Hermes Agent update check poll (ms) |
+| `POLL_INTERVAL_SOFTWARE` | `600000` | Software versions poll (ms): driver, CUDA, kernel, OS, DGX OS. Also read when a unit comes online |
 | `POLL_INTERVAL_TAILSCALE` | `30000` | Tailnet probe poll (ms) |
 | `TAILSCALE_PROBE_TIMEOUT_MS` | `8000` | Timeout for `tailscale status --json` (ms) |
 | `POLL_INTERVAL_NVERR` | `60000` | Kernel journal scan for NVRM `NV_ERR_NO_MEMORY` (ms) |

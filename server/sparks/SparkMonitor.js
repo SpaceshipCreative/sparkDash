@@ -10,6 +10,7 @@ import { HermesProbe } from "../collectors/HermesProbe.js";
 import { TailscaleProbe } from "../collectors/TailscaleProbe.js";
 import { llmDaily } from "../collectors/LlmDaily.js";
 import { HealthEvaluator } from "../health/HealthEvaluator.js";
+import { COMPARED_FIELDS } from "../../src/shared/softwareDrift.js";
 import { sshExec } from "../collectors/ssh.js";
 
 /** macOS uptime in seconds from `kern.boottime` (`{ sec = 1791857261, usec = ... } ...`). */
@@ -19,6 +20,7 @@ import {
   POLL_INTERVAL_STORAGE,
   POLL_INTERVAL_LIVENESS,
   POLL_INTERVAL_HERMES,
+  POLL_INTERVAL_SOFTWARE,
   POLL_INTERVAL_TAILSCALE,
   LLM_PORT,
   COMFY_PORT,
@@ -132,6 +134,8 @@ export class SparkMonitor {
     /** Health rules + their sample-streak state; findings go out in snapshot().health. */
     this._healthEval = new HealthEvaluator();
     this._health = [];
+    /** Last good software reading (snapshot().software); null until the first one. */
+    this._software = null;
     this._prevHealthIds = null;
     // Resolver for worker derived label: maps a head spark id to its live
     // LLM model id (or null when unknown). Wired by index.js from the monitor
@@ -494,6 +498,30 @@ export class SparkMonitor {
     return Boolean(spark?.hermesMonitoring);
   }
 
+  /** Software versions are read from Linux files; Windows and macOS units have none. */
+  _softwareEnabled() {
+    return this.spark.platform !== "windows" && this.spark.platform !== "darwin";
+  }
+
+  /** Activity event when a compared version changes; the first reading is a baseline. */
+  _noteSoftwareChange(prev, next) {
+    if (!prev) return;
+    const changes = [];
+    for (const { field, label } of COMPARED_FIELDS) {
+      if (prev[field] && next[field] && prev[field] !== next[field]) {
+        changes.push({ field, label, from: prev[field], to: next[field] });
+      }
+    }
+    if (changes.length === 0) return;
+    const name = this.spark.name || this.spark.id;
+    this._emit({
+      type: "software.changed",
+      severity: "info",
+      message: `${name}: ${changes.map((c) => `${c.label} ${c.from} → ${c.to}`).join(", ")}`,
+      data: { changes: changes.map(({ field, from, to }) => ({ field, from, to })) },
+    });
+  }
+
   /** Start or clear the Hermes update-check timer when monitoring flips. */
   _restartHermesPollInterval() {
     if (this._hermesIntervalId != null) {
@@ -605,6 +633,7 @@ export class SparkMonitor {
     }
     this._intervals.push(setInterval(() => this._pollDomain("storage"), POLL_INTERVAL_STORAGE));
     this._intervals.push(setInterval(() => this._pollDomain("residentModels"), RESIDENT_MODELS_POLL_MS));
+    this._intervals.push(setInterval(() => this._pollDomain("software"), POLL_INTERVAL_SOFTWARE));
     this._restartLlmPollInterval();
     this._restartComfyPollInterval();
     this._restartHermesPollInterval();
@@ -686,6 +715,7 @@ export class SparkMonitor {
       hermes: this._hermes,
       health: this._health,
       hardware: this._hardwareSummary,
+      software: this._software,
       metrics: {
         // NOTE: no `timestamp` here. The frontend does not consume a metrics
         // timestamp; the broadcast envelope's `generatedAt` (see
@@ -739,6 +769,8 @@ export class SparkMonitor {
   _noteOnline(next) {
     const prev = this._prevOnline;
     this._prevOnline = next;
+    // Versions change across reboots: read them as soon as the unit answers, not 10 minutes later.
+    if (next && prev !== true) void this._pollDomain("software");
     if (prev == null || prev === next) return;
     const name = this.spark.name || this.spark.id;
     this._emit(
@@ -1022,6 +1054,7 @@ export class SparkMonitor {
     if (domain === "comfy" && !this._comfyMonitoringEnabled()) return;
     if (domain === "hermes" && !this._hermesMonitoringEnabled()) return;
     if (domain === "tailscale" && !this._tailscaleMonitoringEnabled()) return;
+    if (domain === "software" && !this._softwareEnabled()) return;
     const runGeneration = this._runGeneration;
     const pollToken = Symbol(domain);
     this._inflight[domain] = pollToken;
@@ -1056,6 +1089,9 @@ export class SparkMonitor {
           break;
         case "memory":
           result = await this.collector.collectUnifiedMemory();
+          break;
+        case "software":
+          result = await this.collector.collectSoftware(); // null = could not read
           break;
         case "llm":
           // Probe all ports in parallel
@@ -1120,6 +1156,12 @@ export class SparkMonitor {
         case "memory":
           this._metrics.unifiedMemory = result;
           this._updateHealth();
+          break;
+        case "software":
+          if (result) {
+            this._noteSoftwareChange(this._software, result);
+            this._software = result;
+          }
           break;
         case "llm":
           {

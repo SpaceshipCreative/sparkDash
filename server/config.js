@@ -76,6 +76,8 @@ const POLL_INTERVAL_LIVENESS = parseInt(process.env.POLL_INTERVAL_LIVENESS || "5
 // Hermes Agent update check cadence. `hermes update --check` runs `git fetch`
 // on the target every time, so keep it slow (default 10 min).
 const POLL_INTERVAL_HERMES = parseInt(process.env.POLL_INTERVAL_HERMES || "600000", 10);
+// Driver / CUDA / kernel / OS versions: a handful of file reads, re-read on every reconnect too.
+const POLL_INTERVAL_SOFTWARE = parseInt(process.env.POLL_INTERVAL_SOFTWARE || "600000", 10);
 // Hard cap while running `hermes update` over SSH (repo pull + dep reinstall).
 const HERMES_UPDATE_TIMEOUT_MS = parseInt(
   process.env.HERMES_UPDATE_TIMEOUT_MS || "600000",
@@ -226,6 +228,7 @@ export {
   POLL_INTERVAL_BANDWIDTH,
   POLL_INTERVAL_LIVENESS,
   POLL_INTERVAL_HERMES,
+  POLL_INTERVAL_SOFTWARE,
   BANDWIDTH_MIN_INTERVAL_MS,
   FAST_POLL_ENV_VARS,
   FAST_POLL_ENV_OVERRIDES,

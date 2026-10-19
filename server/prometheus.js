@@ -48,6 +48,11 @@ export const METRIC_FAMILIES = [
     help: "Always 1; carries the GPU's name and UUID as labels.",
   },
   {
+    name: "sparkdash_software_info",
+    type: "gauge",
+    help: "Always 1; carries the unit's NVIDIA driver, CUDA toolkit, kernel, OS and DGX OS versions as labels (Linux units).",
+  },
+  {
     name: "sparkdash_gpu_utilization_ratio",
     type: "gauge",
     help: "GPU utilization reported by vendor tooling (0-1).",
@@ -352,6 +357,14 @@ function addUnit(samples, entry) {
   if (snapshot.online !== true) return;
 
   samples.add("sparkdash_uptime_seconds", base, snapshot.uptime);
+  const sw = snapshot.software;
+  if (sw && typeof sw === "object") {
+    samples.add(
+      "sparkdash_software_info",
+      { ...base, driver: sw.driver ?? null, cuda: sw.cuda ?? null, kernel: sw.kernel ?? null, os: sw.os ?? null, dgx_os: sw.dgxOs ?? null },
+      1
+    );
+  }
   for (const [collector, ms] of Object.entries(collectedAt)) {
     if (finite(ms) && ms > 0) {
       samples.add("sparkdash_collector_last_success_timestamp_seconds", { ...base, collector }, ms / 1000);

@@ -510,6 +510,7 @@ The exporter reads the snapshot sparkDash already holds, so scraping adds no SSH
 | `sparkdash_uptime_seconds` | gauge | | Host uptime |
 | `sparkdash_collector_last_success_timestamp_seconds` | gauge | `collector` | Unix time of the last poll of each collector (`gpu`, `cpu`, `ram`, `memory`, `network`, `storage`, `llm`, `roce`) that returned real data, not zeroed defaults. A stuck collector stops advancing while `sparkdash_up` stays 1, so alert on `time() - sparkdash_collector_last_success_timestamp_seconds > 60`. Absent until a collector has succeeded |
 | `sparkdash_gpu_info` | gauge | `gpu`, `name`, `uuid` | Always 1. `gpu` is the nvidia-smi index for an NVIDIA card; an AMD card (amd-smi) is its index plus 1000, so `gpu="1000"` is the first AMD card. Per-card chart history uses the same number (`gpu.1000.*`) |
+| `sparkdash_software_info` | gauge | `driver`, `cuda`, `kernel`, `os`, `dgx_os` | Always 1, on Linux units once versions are read. A label is absent when that version could not be read (no DGX OS on a plain Ubuntu host). `count by (driver) (sparkdash_software_info)` shows driver spread across the fleet |
 | `sparkdash_gpu_utilization_ratio` | gauge | `gpu` | 0–1 |
 | `sparkdash_gpu_temperature_celsius` | gauge | `gpu` | |
 | `sparkdash_gpu_power_watts`, `sparkdash_gpu_power_limit_watts` | gauge | `gpu` | |

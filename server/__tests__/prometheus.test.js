@@ -518,3 +518,20 @@ test("metricsEntries wires each monitor's snapshot, provenance and success times
   const fam = parseExposition(renderPrometheusMetrics(entries)).get("sparkdash_collector_last_success_timestamp_seconds");
   assert.equal(fam.samples[0].value, 1_791_700_000);
 });
+
+test("software versions are one info sample per online unit; null versions are dropped", () => {
+  const software = { driver: "580.95.05", cuda: "13.0.1", kernel: "6.11.0-1016-nvidia", os: "Ubuntu 24.04.3 LTS", dgxOs: null, collectedAt: 1 };
+  const families = parseExposition(renderPrometheusMetrics([{ ...gb10Head(), software }]));
+  const [s] = samplesOf(families, "sparkdash_software_info");
+  assert.equal(s.value, 1);
+  assert.equal(s.labels.unit, "spark-1");
+  assert.equal(s.labels.driver, "580.95.05");
+  assert.equal(s.labels.cuda, "13.0.1");
+  assert.equal(s.labels.kernel, "6.11.0-1016-nvidia");
+  assert.equal(s.labels.os, "Ubuntu 24.04.3 LTS");
+  assert.equal("dgx_os" in s.labels, false);
+
+  assert.equal(samplesOf(parseExposition(renderPrometheusMetrics([gb10Head()])), "sparkdash_software_info").length, 0, "no reading, no sample");
+  const offline = { ...gb10Head(), online: false, software };
+  assert.equal(samplesOf(parseExposition(renderPrometheusMetrics([offline])), "sparkdash_software_info").length, 0);
+});

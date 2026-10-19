@@ -183,6 +183,21 @@ export interface HardwareInfo {
   storageModel: string | null;
 }
 
+// ─── Software versions ───────────────────────────────────
+/** Linux units only; null until read, and on Windows / macOS units. */
+export interface SoftwareInfo {
+  /** NVIDIA kernel module version, e.g. "580.95.05". */
+  driver: string | null;
+  /** CUDA toolkit on the host (/usr/local/cuda/version.json). */
+  cuda: string | null;
+  kernel: string | null;
+  /** os-release PRETTY_NAME; shown, never compared. */
+  os: string | null;
+  dgxOs: string | null;
+  /** Epoch ms of the reading. */
+  collectedAt: number;
+}
+
 // ─── GPU metrics ─────────────────────────────────────────
 export interface GpuThrottle {
   /** HW or SW thermal slowdown engaged. */
@@ -700,6 +715,8 @@ export interface SparkSnapshot {
   /** Hermes Agent update monitoring state (present in every snapshot). */
   hermes?: HermesStatus;
   hardware: HardwareInfo;
+  /** Optional so a dashboard talking to an older server still type-checks. */
+  software?: SoftwareInfo | null;
   metrics: SparkMetrics;
 }
 
